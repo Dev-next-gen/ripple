@@ -269,17 +269,24 @@ describe('@ripple-ts/adapter-bun serve()', () => {
 		}
 	});
 
-	it('serveStatic middleware serves a prerendered directory index.html', async () => {
+	it.each([
+		['GET', '/'],
+		['GET', '/about'],
+		['GET', '/about/'],
+		['HEAD', '/about'],
+	])('serveStatic middleware serves a prerendered index for %s %s', async (method, pathname) => {
 		const temp_dir = mkdtempSync(join(tmpdir(), 'adapter-bun-static-prerendered-'));
 		try {
+			const content = '<h1>prerendered</h1>';
+			writeFileSync(join(temp_dir, 'index.html'), content);
 			mkdirSync(join(temp_dir, 'about'));
-			writeFileSync(join(temp_dir, 'about', 'index.html'), '<h1>about</h1>');
+			writeFileSync(join(temp_dir, 'about', 'index.html'), content);
 
 			const static_middleware = serveStatic(temp_dir);
 			const next = vi.fn(async () => new Response('next'));
 
 			const response = await static_middleware(
-				new Request('http://localhost/about'),
+				new Request(`http://localhost${pathname}`, { method }),
 				/** @type {import('bun').Server<undefined>} */ ({}),
 				next,
 			);
@@ -287,8 +294,60 @@ describe('@ripple-ts/adapter-bun serve()', () => {
 			expect(next).not.toHaveBeenCalled();
 			expect(response.status).toBe(200);
 			expect(response.headers.get('content-type')).toBe('text/html; charset=utf-8');
+			expect(response.headers.get('content-length')).toBe(String(Buffer.byteLength(content)));
 			expect(response.headers.get('cache-control')).toBe('public, max-age=0, must-revalidate');
-			expect(await response.text()).toBe('<h1>about</h1>');
+			expect(await response.text()).toBe(method === 'HEAD' ? '' : content);
+		} finally {
+			rmSync(temp_dir, { recursive: true, force: true });
+		}
+	});
+
+	it.each(['/missing', '/missing/', '/empty', '/empty/', '/nested'])(
+		'serveStatic middleware falls through without an index for %s',
+		async (pathname) => {
+			const temp_dir = mkdtempSync(join(tmpdir(), 'adapter-bun-static-no-index-'));
+			try {
+				mkdirSync(join(temp_dir, 'empty'));
+				mkdirSync(join(temp_dir, 'nested', 'index.html'), { recursive: true });
+				const static_middleware = serveStatic(temp_dir);
+				const next = vi.fn(async () => new Response('next'));
+
+				const response = await static_middleware(
+					new Request(`http://localhost${pathname}`),
+					/** @type {import('bun').Server<undefined>} */ ({}),
+					next,
+				);
+
+				expect(next).toHaveBeenCalledTimes(1);
+				expect(await response.text()).toBe('next');
+			} finally {
+				rmSync(temp_dir, { recursive: true, force: true });
+			}
+		},
+	);
+
+	it.each([
+		['/robots.txt', 'text/plain; charset=utf-8'],
+		['/', 'text/html; charset=utf-8'],
+	])('serveStatic middleware serves a zero-byte file for %s', async (pathname, content_type) => {
+		const temp_dir = mkdtempSync(join(tmpdir(), 'adapter-bun-static-empty-file-'));
+		try {
+			writeFileSync(join(temp_dir, 'robots.txt'), '');
+			writeFileSync(join(temp_dir, 'index.html'), '');
+			const static_middleware = serveStatic(temp_dir);
+			const next = vi.fn(async () => new Response('next'));
+
+			const response = await static_middleware(
+				new Request(`http://localhost${pathname}`),
+				/** @type {import('bun').Server<undefined>} */ ({}),
+				next,
+			);
+
+			expect(next).not.toHaveBeenCalled();
+			expect(response.status).toBe(200);
+			expect(response.headers.get('content-type')).toBe(content_type);
+			expect(response.headers.get('content-length')).toBe('0');
+			expect(await response.text()).toBe('');
 		} finally {
 			rmSync(temp_dir, { recursive: true, force: true });
 		}
