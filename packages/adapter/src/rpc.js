@@ -109,7 +109,7 @@ export function patch_global_fetch(async_context) {
 				try {
 					const resolved_origin = new URL(resolved_url).origin;
 					if (resolved_origin === context.origin) {
-						const request = input instanceof Request ? input : new Request(input, init);
+						const request = new Request(input, init);
 						return internal_handler(request);
 					}
 				} catch {
