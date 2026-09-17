@@ -79,7 +79,7 @@ export function patch_global_fetch(async_context) {
 	 * @param {RequestInit} [init]
 	 * @returns {ReturnType<typeof globalThis.fetch>}
 	 */
-	const patched_fetch = function (input, init) {
+	const patched_fetch = async function (input, init) {
 		const context = async_context.getStore();
 
 		if (context?.origin) {
@@ -106,14 +106,18 @@ export function patch_global_fetch(async_context) {
 				const resolved_url =
 					typeof input === 'string' ? input : input instanceof Request ? input.url : input.href;
 
+				let resolved_origin;
 				try {
-					const resolved_origin = new URL(resolved_url).origin;
-					if (resolved_origin === context.origin) {
-						const request = new Request(input, init);
-						return internal_handler(request);
-					}
+					resolved_origin = new URL(resolved_url).origin;
 				} catch {
 					// Not a valid URL — fall through to real fetch
+				}
+
+				if (resolved_origin === context.origin) {
+					// Request construction and handler errors must reject fetch,
+					// not retry the request over the network.
+					const request = new Request(input, init);
+					return internal_handler(request);
 				}
 			}
 		}
