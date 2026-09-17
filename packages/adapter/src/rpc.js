@@ -79,7 +79,7 @@ export function patch_global_fetch(async_context) {
 	 * @param {RequestInit} [init]
 	 * @returns {ReturnType<typeof globalThis.fetch>}
 	 */
-	const patched_fetch = async function (input, init) {
+	const patched_fetch = function (input, init) {
 		const context = async_context.getStore();
 
 		if (context?.origin) {
@@ -114,10 +114,14 @@ export function patch_global_fetch(async_context) {
 				}
 
 				if (resolved_origin === context.origin) {
-					// Request construction and handler errors must reject fetch,
-					// not retry the request over the network.
-					const request = new Request(input, init);
-					return internal_handler(request);
+					try {
+						const request = new Request(input, init);
+						return internal_handler(request);
+					} catch (error) {
+						// Request construction and handler errors must reject fetch,
+						// not retry the request over the network.
+						return Promise.reject(error);
+					}
 				}
 			}
 		}
