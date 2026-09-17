@@ -1,5 +1,32 @@
 # ripple
 
+## 0.4.4
+
+### Patch Changes
+
+- [#1490](https://github.com/Ripple-TS/ripple/pull/1490)
+  [`ff3a26a`](https://github.com/Ripple-TS/ripple/commit/ff3a26acef0c9584cf41d32bc8cbcc39d863d74c)
+  Thanks [@leonidaz](https://github.com/leonidaz)! - Blocks keep the namespace
+  they were created in when they rerun. A dynamic element whose tag changes, an
+  `@if` that toggles, or an `@for` that grows inside an SVG that is only known at
+  runtime (children rendered into a component's `<svg>`, a leaf component rendered
+  there) now creates its elements in the SVG namespace instead of HTML, and a
+  nested template cloned in that context no longer throws before a namespaced
+  template has been parsed. A dynamic element whose tag becomes `foreignObject`
+  renders its children as HTML.
+
+- [#1488](https://github.com/Ripple-TS/ripple/pull/1488)
+  [`b3bf787`](https://github.com/Ripple-TS/ripple/commit/b3bf78756d9235412a2af264e42897652e8f911e)
+  Thanks [@leonidaz](https://github.com/leonidaz)! - Build a template that is one
+  element with static attributes and at most a text child with DOM calls instead
+  of parsing it. Parsing a `<template>` has a fixed cost that dwarfs such an
+  element, and an app's first render pays it once per distinct template; a chain
+  of 100 single-element components mounts about 35% faster.
+- Updated dependencies
+  [[`b3bf787`](https://github.com/Ripple-TS/ripple/commit/b3bf78756d9235412a2af264e42897652e8f911e),
+  [`ff3a26a`](https://github.com/Ripple-TS/ripple/commit/ff3a26acef0c9584cf41d32bc8cbcc39d863d74c)]:
+  - @tsrx/ripple@0.2.3
+
 ## 0.4.3
 
 ### Patch Changes
