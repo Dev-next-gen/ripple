@@ -107,6 +107,31 @@ describe('patch_global_fetch', () => {
 		expect(network_fetch).not.toHaveBeenCalled();
 	});
 
+	it.each(['//[invalid', '//'])(
+		'rejects malformed relative URL %s without throwing synchronously',
+		async (input) => {
+			const handler = vi.fn(async () => new Response('handler'));
+			fetch_handle.set_handler(handler);
+
+			await expect(fetch(input)).rejects.toThrow(TypeError);
+			expect(handler).not.toHaveBeenCalled();
+			expect(network_fetch).not.toHaveBeenCalled();
+		},
+	);
+
+	it('returns the internal handler promise directly for relative URLs', async () => {
+		const response = Promise.resolve(new Response('handler'));
+		const handler = vi.fn(() => response);
+		fetch_handle.set_handler(handler);
+
+		const result = fetch('/api/items');
+
+		expect(result).toBe(response);
+		expect(handler.mock.calls[0][0].url).toBe('http://localhost:3000/api/items');
+		expect(await (await result).text()).toBe('handler');
+		expect(network_fetch).not.toHaveBeenCalled();
+	});
+
 	it('rejects invalid Request init without falling back to network fetch', async () => {
 		const handler = vi.fn(async () => new Response('handler'));
 		fetch_handle.set_handler(handler);
@@ -158,7 +183,9 @@ describe('patch_global_fetch', () => {
 			const input = new Request(`${origin}/api/items`, { method: 'POST', body: 'original' });
 			const init = { headers: { 'x-test': '1' } };
 
-			expect(await (await fetch(input, init)).text()).toBe('network');
+			const result = fetch(input, init);
+			expect(result).toBe(network_fetch.mock.results[0].value);
+			expect(await (await result).text()).toBe('network');
 			expect(network_fetch).toHaveBeenCalledExactlyOnceWith(input, init);
 			expect(input.bodyUsed).toBe(false);
 			expect(handler).not.toHaveBeenCalled();
