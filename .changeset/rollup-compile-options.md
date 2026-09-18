@@ -2,4 +2,6 @@
 '@ripple-ts/rollup-plugin': patch
 ---
 
-Pass `compilerOptions` to the compiler instead of the raw file id. The third argument to `compile()` was the file path string, so user-provided options such as `mode` were silently ignored.
+Pass `compilerOptions` to the compiler instead of the raw file id. This fixes a
+`TypeError` when compiling `.tsrx` files and ensures options such as `mode`,
+`dev`, `hmr`, and `hydration` are respected.
